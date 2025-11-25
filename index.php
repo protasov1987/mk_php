@@ -143,7 +143,7 @@ $config = require __DIR__ . '/config.php';
 </div>
 
 <script>
-    const API_BASE = '/api';
+    const API_BASE = '/api/index.php';
     const uploadLimit = <?php echo (int)$config['max_upload_mb']; ?>;
 </script>
 <script src="app.js"></script>

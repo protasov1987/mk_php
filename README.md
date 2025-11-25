@@ -18,16 +18,16 @@
    mysql -u$DB_USER -p$DB_PASS -h$DB_HOST -P$DB_PORT $DB_NAME < migrations/001_init.sql
    mysql -u$DB_USER -p$DB_PASS -h$DB_HOST -P$DB_PORT $DB_NAME < migrations/seed.sql
    ```
-3. Разместите проект в корне виртуального хоста или настройте PHP built‑in server:
+3. Разместите проект в корне виртуального хоста или настройте PHP built‑in server (REST вызовы идут на `/api/index.php/...`, так что переписывание URL не требуется):
    ```bash
    php -S 0.0.0.0:8000
    ```
-4. Откройте `http://localhost:8000` и убедитесь, что `api/health` отвечает JSON `{"status":"ok"}`.
+4. Откройте `http://localhost:8000` и убедитесь, что `api/index.php/health` отвечает JSON `{"status":"ok"}`.
 
 ## Основные возможности
 - SPA‑подобные вкладки «Дашборд», «Тех. карты», «Трекер», «Архив» с поиском и фильтрами.
 - CRUD техкарт, справочников операций и участков; генерация EAN‑13 на сервере.
-- Эндпоинты `/api/cards`, `/api/operations`, `/api/centers`, `/api/cards/{id}/archive`, `/api/cards/{id}/repeat`, `/api/cards/{id}/attachments`, `/api/cards/{id}/log`, `/api/health`.
+- Эндпоинты `/api/cards`, `/api/cards/{id}`, `/api/cards/{id}/operations`, `/api/cards/{id}/log`, `/api/cards/{id}/attachments`, `/api/cards/{id}/archive`, `/api/cards/{id}/repeat`, `/api/operations`, `/api/centers`, `/api/attachments/{id}`, `/api/health`.
 - Проверка расширений и лимит 15 МБ для вложений, хранение файлов во внешнем каталоге.
 - Логирование изменений карт в таблице `logs` для последующего просмотра и печати.
 
