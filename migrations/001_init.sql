@@ -1,0 +1,65 @@
+CREATE TABLE IF NOT EXISTS cards (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ean13 VARCHAR(13) NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    qty INT NULL,
+    order_no VARCHAR(255) NULL,
+    drawing VARCHAR(255) NULL,
+    material VARCHAR(255) NULL,
+    description TEXT NULL,
+    status ENUM('NOT_STARTED','IN_PROGRESS','PAUSED','MIXED','DONE') NOT NULL DEFAULT 'NOT_STARTED',
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    archived_at DATETIME NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS operations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NULL,
+    recommended_time_minutes INT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS centers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS card_operations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    card_id INT NOT NULL,
+    operation_id INT NOT NULL,
+    center_id INT NULL,
+    assignee VARCHAR(255) NULL,
+    planned_start DATETIME NULL,
+    planned_end DATETIME NULL,
+    actual_time_minutes INT NULL,
+    status ENUM('NOT_STARTED','IN_PROGRESS','PAUSED','DONE') NOT NULL DEFAULT 'NOT_STARTED',
+    comments TEXT NULL,
+    position INT NOT NULL DEFAULT 0,
+    FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE,
+    FOREIGN KEY (operation_id) REFERENCES operations(id) ON DELETE CASCADE,
+    FOREIGN KEY (center_id) REFERENCES centers(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS attachments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    card_id INT NOT NULL,
+    filename_original VARCHAR(255) NOT NULL,
+    filename_stored VARCHAR(255) NOT NULL,
+    mime_type VARCHAR(255) NOT NULL,
+    size_bytes BIGINT NOT NULL,
+    created_at DATETIME NOT NULL,
+    FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    card_id INT NOT NULL,
+    event_type VARCHAR(100) NOT NULL,
+    payload JSON NULL,
+    created_at DATETIME NOT NULL,
+    FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
