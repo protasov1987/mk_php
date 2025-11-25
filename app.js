@@ -34,16 +34,129 @@ function statusBadge(status) {
     return `<span class="badge ${status}">${status}</span>`;
 }
 
-async function api(path, options = {}) {
+const OFFLINE_KEY = 'tszp_offline_cache';
+let offlineMode = false;
+
+function readOffline() {
+    const raw = localStorage.getItem(OFFLINE_KEY);
+    if (!raw) return {cards: [], centers: [], operations: []};
     try {
-        const res = await fetch(`${API_BASE}${path}`, {headers: {'Content-Type': 'application/json'}, ...options});
+        return JSON.parse(raw);
+    } catch (e) {
+        return {cards: [], centers: [], operations: []};
+    }
+}
+
+function writeOffline(data) {
+    localStorage.setItem(OFFLINE_KEY, JSON.stringify(data));
+}
+
+function generateEan13() {
+    const base = String(Date.now()).slice(-12).padStart(12, '0');
+    const digits = base.split('').map(Number);
+    let sum = 0;
+    for (let i = 0; i < 12; i++) {
+        sum += digits[i] * (i % 2 === 0 ? 1 : 3);
+    }
+    const checksum = (10 - (sum % 10)) % 10;
+    return base + checksum;
+}
+
+function offlineApi(path, options = {}) {
+    const data = readOffline();
+    const method = (options.method || 'GET').toUpperCase();
+    const url = new URL(path, 'http://dummy');
+    const [resource, id, subresource] = url.pathname.replace(/^\//, '').split('/');
+
+    if (resource === 'cards') {
+        if (method === 'GET' && !id) {
+            const q = url.searchParams.get('q')?.toLowerCase() || '';
+            const status = url.searchParams.get('status');
+            const archived = url.searchParams.get('archived') === '1';
+            const items = data.cards
+                .filter(c => (archived ? c.archived_at : !c.archived_at))
+                .filter(c => !q || c.name.toLowerCase().includes(q) || (c.order_no || '').toLowerCase().includes(q) || (c.ean13 || '').toLowerCase().includes(q))
+                .filter(c => !status || c.status === status)
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            return {items};
+        }
+        if (method === 'POST' && !id) {
+            const body = options.body ? JSON.parse(options.body) : {};
+            const card = {
+                id: Date.now(),
+                ean13: generateEan13(),
+                name: body.name,
+                qty: body.qty || null,
+                order_no: body.order_no || null,
+                drawing: body.drawing || null,
+                material: body.material || null,
+                description: body.description || null,
+                status: 'NOT_STARTED',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                archived_at: null,
+            };
+            data.cards.unshift(card);
+            writeOffline(data);
+            return {id: card.id, ean13: card.ean13};
+        }
+        if (id && method === 'POST' && subresource === 'archive') {
+            const card = data.cards.find(c => String(c.id) === id);
+            if (card) {
+                card.archived_at = new Date().toISOString();
+                card.status = 'DONE';
+                writeOffline(data);
+            }
+            return {success: true};
+        }
+        if (id && method === 'POST' && subresource === 'repeat') {
+            const original = data.cards.find(c => String(c.id) === id);
+            if (original) {
+                const clone = {...original, id: Date.now(), ean13: generateEan13(), status: 'NOT_STARTED', archived_at: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString()};
+                data.cards.unshift(clone);
+                writeOffline(data);
+                return {id: clone.id, ean13: clone.ean13};
+            }
+            return {error: 'not_found'};
+        }
+    }
+
+    if (resource === 'centers') {
+        if (method === 'GET') return {items: data.centers};
+        if (method === 'POST') {
+            const body = options.body ? JSON.parse(options.body) : {};
+            data.centers.push({id: Date.now(), name: body.name, description: body.description});
+            writeOffline(data);
+            return {success: true};
+        }
+    }
+
+    if (resource === 'operations') {
+        if (method === 'GET') return {items: data.operations};
+        if (method === 'POST') {
+            const body = options.body ? JSON.parse(options.body) : {};
+            data.operations.push({id: Date.now(), code: body.code, name: body.name, description: body.description, recommended_time_minutes: body.recommended_time_minutes});
+            writeOffline(data);
+            return {success: true};
+        }
+    }
+
+    return {items: []};
+}
+
+async function api(path, options = {}) {
+    const headers = {'Content-Type': 'application/json', ...(options.headers || {})};
+    try {
+        const res = await fetch(`${API_BASE}${path}`, {headers, ...options});
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         banner.hidden = true;
+        offlineMode = false;
         return data;
     } catch (e) {
         banner.hidden = false;
-        throw e;
+        offlineMode = true;
+        return offlineApi(path, {...options, headers});
     }
 }
 
